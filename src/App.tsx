@@ -58,23 +58,17 @@ function App() {
     let houseResult: ApiResponse | null = null;
     let landResult: ApiResponse | null = null;
 
-    const updateData = () => {
-      const current = filters.propertyType === "land" ? landResult : houseResult;
-      if (current) setData(current);
-    };
-
-    // Fetch both in parallel, stream results as they come
+    // Fetch both in parallel, update allData as each stream progresses
     Promise.allSettled([
       fetchListings(houseFilters, (partial) => {
         houseResult = partial;
-        updateData();
+        setAllData((prev) => ({ ...prev, house: partial }));
       }),
       fetchListings(landFilters, (partial) => {
         landResult = partial;
-        updateData();
+        setAllData((prev) => ({ ...prev, land: partial }));
       }),
     ]).then(() => {
-      setAllData({ house: houseResult, land: landResult });
       setLoading(false);
     }).catch((err) => {
       setError(err.message);
@@ -82,7 +76,7 @@ function App() {
     });
   }, []);
 
-  // When filters change, just switch data source — no re-fetch
+  // When allData or propertyType changes, update displayed data
   useEffect(() => {
     const source = filters.propertyType === "land" ? allData.land : allData.house;
     if (source) setData(source);
