@@ -74,11 +74,17 @@ app.get("/api/listings", async (req, res) => {
       let site = s.name;
       let listings = [];
       let error = null;
+      const start = Date.now();
       try {
         const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("timeout")), 15000),
+          setTimeout(() => reject(new Error("timeout")), 25000),
         );
         listings = await Promise.race([s.fn(filters), timeout]);
+      } catch (err) {
+        error = err.message;
+      }
+
+      console.log(`[API] ${site}: ${listings.length} listings in ${Date.now() - start}ms${error ? ` (${error})` : ""}`);
       } catch (err) {
         error = err.message;
       }
