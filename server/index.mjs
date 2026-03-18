@@ -85,9 +85,6 @@ app.get("/api/listings", async (req, res) => {
       }
 
       console.log(`[API] ${site}: ${listings.length} listings in ${Date.now() - start}ms${error ? ` (${error})` : ""}`);
-      } catch (err) {
-        error = err.message;
-      }
 
       // Add altitude info
       for (const listing of listings) {
