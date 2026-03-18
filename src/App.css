@@ -98,6 +98,16 @@
   width: 100%;
 }
 
+.filter-group ui5-segmented-button-item {
+  min-width: 0;
+}
+
+.filter-group ui5-segmented-button-item::part(button) {
+  white-space: nowrap;
+  text-overflow: clip;
+  overflow: visible;
+}
+
 .filter-group ui5-range-slider {
   width: 100%;
 }
