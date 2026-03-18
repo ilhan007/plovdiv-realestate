@@ -32,6 +32,7 @@ const SCRAPERS = [
   { name: "home2u.bg", fn: scrapeHome2u },
 ];
 
+// SSE endpoint — streams results as each scraper finishes
 app.get("/api/listings", async (req, res) => {
   const filters = {
     propertyType: req.query.type || "all",
@@ -40,11 +41,11 @@ app.get("/api/listings", async (req, res) => {
     locationScope: req.query.scope || "region",
   };
 
-  // Check which sites to scrape (or all)
   const sitesParam = req.query.sites;
   const requestedSites = sitesParam ? sitesParam.split(",") : null;
-
   const key = getCacheKey({ ...filters, sites: requestedSites });
+
+  // If cached, return full JSON (not SSE)
   const cached = cache.get(key);
   if (cached && Date.now() - cached.time < CACHE_TTL) {
     return res.json(cached.data);
@@ -54,60 +55,56 @@ app.get("/api/listings", async (req, res) => {
     ? SCRAPERS.filter((s) => requestedSites.includes(s.name))
     : SCRAPERS;
 
-  console.log(`[API] Scraping ${scrapers.map((s) => s.name).join(", ")}...`);
+  // Set up SSE
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
 
-  // Run all scrapers in parallel with per-scraper timeout
-  const results = await Promise.allSettled(
-    scrapers.map(async (s) => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
-      try {
-        const listings = await s.fn(filters);
-        clearTimeout(timeout);
-        return { site: s.name, listings, error: null };
-      } catch (err) {
-        clearTimeout(timeout);
-        return { site: s.name, listings: [], error: err.message };
-      }
-    }),
-  );
+  console.log(`[API] Streaming ${scrapers.map((s) => s.name).join(", ")}...`);
 
   const allListings = [];
   const siteStatus = {};
+  let completed = 0;
 
-  for (const result of results) {
-    const val = result.status === "fulfilled" ? result.value : {
-      site: "unknown",
-      listings: [],
-      error: result.reason?.message,
-    };
-
-    siteStatus[val.site] = {
-      count: val.listings.length,
-      error: val.error,
-    };
-
-    // Add altitude info to each listing
-    for (const listing of val.listings) {
-      const alt = getAltitude(listing.location);
-      if (alt) {
-        listing.altitude = getAltitudeBadge(alt);
+  // Run all scrapers in parallel, stream each result as it arrives
+  await Promise.allSettled(
+    scrapers.map(async (s) => {
+      let site = s.name;
+      let listings = [];
+      let error = null;
+      try {
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), 30000),
+        );
+        listings = await Promise.race([s.fn(filters), timeout]);
+      } catch (err) {
+        error = err.message;
       }
-      allListings.push(listing);
-    }
-  }
 
-  const totalCount = allListings.length;
-  console.log(`[API] Total: ${totalCount} listings from ${Object.keys(siteStatus).length} sites`);
+      // Add altitude info
+      for (const listing of listings) {
+        const alt = getAltitude(listing.location);
+        if (alt) listing.altitude = getAltitudeBadge(alt);
+        allListings.push(listing);
+      }
 
-  const response = {
-    total: totalCount,
-    sites: siteStatus,
-    listings: allListings,
-  };
+      siteStatus[site] = { count: listings.length, error };
+      completed++;
 
-  cache.set(key, { data: response, time: Date.now() });
-  res.json(response);
+      // Send this batch to the client
+      const event = { site, listings, error, done: completed === scrapers.length };
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    }),
+  );
+
+  // Cache the full result
+  const fullResponse = { total: allListings.length, sites: siteStatus, listings: allListings };
+  cache.set(key, { data: fullResponse, time: Date.now() });
+  console.log(`[API] Total: ${allListings.length} listings from ${Object.keys(siteStatus).length} sites`);
+
+  res.end();
 });
 
 // Health check

@@ -114,27 +114,6 @@
   gap: 0.375rem;
 }
 
-.price-chip {
-  padding: 0.3rem 0.65rem;
-  border-radius: 1.25rem;
-  border: 1.5px solid var(--sapPositiveColor, #256f3a);
-  background: transparent;
-  color: var(--sapPositiveColor, #256f3a);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.price-chip:hover {
-  background: color-mix(in srgb, var(--sapPositiveColor, #256f3a) 8%, transparent);
-}
-
-.price-chip.active {
-  background: var(--sapPositiveColor, #256f3a);
-  color: #fff;
-}
-
 /* ─── Site Chips ─── */
 
 .chip-list {

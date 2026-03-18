@@ -50,9 +50,11 @@ function App() {
     const timer = setTimeout(() => {
       setLoading(true);
       setError(null);
-      fetchListings(filters)
-        .then((res) => {
-          setData(res);
+      setData(null);
+      fetchListings(filters, (partial) => {
+        setData(partial);
+      })
+        .then(() => {
           setLoading(false);
         })
         .catch((err) => {
@@ -73,6 +75,14 @@ function App() {
       items = items.filter((l) => l.site === activeSiteFilter);
     }
 
+    // Filter by price (client-side enforcement)
+    if (filters.priceMin > 0 || filters.priceMax < 300000) {
+      items = items.filter((l) => {
+        if (!l.priceNum) return true; // keep listings without parsed price
+        return l.priceNum >= filters.priceMin && l.priceNum <= filters.priceMax;
+      });
+    }
+
     // Filter by location
     if (activeLocationFilter) {
       const q = activeLocationFilter.toLowerCase();
@@ -90,7 +100,7 @@ function App() {
     }
 
     return items;
-  }, [data, sortBy, activeSiteFilter, activeLocationFilter]);
+  }, [data, sortBy, activeSiteFilter, activeLocationFilter, filters.priceMin, filters.priceMax]);
 
   // Count listings per pinned location (from all listings, not filtered)
   const locationCounts = useMemo(() => {
@@ -178,18 +188,23 @@ function App() {
                   { label: "100–200k", min: 100000, max: 200000 },
                   { label: "200–300k", min: 200000, max: 300000 },
                   { label: "300k+", min: 300000, max: 9999999 },
-                ] as const).map((range) => (
-                  <button
-                    key={range.label}
-                    className={`price-chip ${filters.priceMin === range.min && filters.priceMax === range.max ? "active" : ""}`}
-                    onClick={() => {
-                      updateFilter("priceMin", range.min);
-                      updateFilter("priceMax", range.max);
-                    }}
-                  >
-                    {range.label}
-                  </button>
-                ))}
+                ] as const).map((range) => {
+                  const active = filters.priceMin === range.min && filters.priceMax === range.max;
+                  return (
+                    <ui5-tag
+                      key={range.label}
+                      interactive
+                      design={active ? "Set1" : "Set2"}
+                      color-scheme={active ? "8" : "6"}
+                      onClick={() => {
+                        updateFilter("priceMin", range.min);
+                        updateFilter("priceMax", range.max);
+                      }}
+                    >
+                      {range.label}
+                    </ui5-tag>
+                  );
+                })}
               </div>
             </div>
 
@@ -264,7 +279,7 @@ function App() {
           {loading && (
             <div className="loading-bar">
               <ui5-button design="Transparent" disabled>
-                Търсене в 6 сайта...
+                {data ? `${Object.keys(data.sites).length}/6 сайта заредени...` : "Търсене в 6 сайта..."}
               </ui5-button>
               <div className="progress-track"><div className="progress-fill" /></div>
             </div>
