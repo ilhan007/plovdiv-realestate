@@ -117,7 +117,12 @@ app.get("/api/health", (_, res) => {
 
 // Serve built React frontend in production
 const distPath = path.join(__dirname, "..", "dist");
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith(".css")) res.setHeader("Content-Type", "text/css");
+    if (filePath.endsWith(".js")) res.setHeader("Content-Type", "application/javascript");
+  },
+}));
 app.get("*path", (req, res, next) => {
   if (req.path.startsWith("/api")) return next();
   res.sendFile(path.join(distPath, "index.html"));
