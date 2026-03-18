@@ -45,25 +45,48 @@ function App() {
     setActiveLocationFilter(null);
   }, []);
 
-  // Fetch listings when filters change (debounced) - sortBy is client-only, no refetch
+  // Fetch BOTH house and land listings once on mount, then filter client-side
+  const [allData, setAllData] = useState<{ house: ApiResponse | null; land: ApiResponse | null }>({ house: null, land: null });
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(true);
-      setError(null);
-      setData(null);
-      fetchListings(filters, (partial) => {
-        setData(partial);
-      })
-        .then(() => {
-          setLoading(false);
-        })
-        .catch((err) => {
-          setError(err.message);
-          setLoading(false);
-        });
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [filters]);
+    setLoading(true);
+    setError(null);
+
+    const houseFilters = { ...DEFAULT_FILTERS, propertyType: "house" as const, locationScope: "region" as const, priceMin: 0, priceMax: 300000 };
+    const landFilters = { ...DEFAULT_FILTERS, propertyType: "land" as const, locationScope: "region" as const, priceMin: 0, priceMax: 300000 };
+
+    let houseResult: ApiResponse | null = null;
+    let landResult: ApiResponse | null = null;
+
+    const updateData = () => {
+      const current = filters.propertyType === "land" ? landResult : houseResult;
+      if (current) setData(current);
+    };
+
+    // Fetch both in parallel, stream results as they come
+    Promise.allSettled([
+      fetchListings(houseFilters, (partial) => {
+        houseResult = partial;
+        updateData();
+      }),
+      fetchListings(landFilters, (partial) => {
+        landResult = partial;
+        updateData();
+      }),
+    ]).then(() => {
+      setAllData({ house: houseResult, land: landResult });
+      setLoading(false);
+    }).catch((err) => {
+      setError(err.message);
+      setLoading(false);
+    });
+  }, []);
+
+  // When filters change, just switch data source — no re-fetch
+  useEffect(() => {
+    const source = filters.propertyType === "land" ? allData.land : allData.house;
+    if (source) setData(source);
+  }, [filters.propertyType, allData]);
 
   // Sort and filter listings client-side
   const displayListings = useMemo(() => {
@@ -73,6 +96,14 @@ function App() {
     // Filter by site
     if (activeSiteFilter) {
       items = items.filter((l) => l.site === activeSiteFilter);
+    }
+
+    // Filter by location scope (city = only "гр. Пловдив" / "Пловдив")
+    if (filters.locationScope === "city") {
+      items = items.filter((l) => {
+        const loc = (l.location || "").toLowerCase();
+        return loc.includes("гр. пловдив") || loc.includes("гр.пловдив") || (loc.includes("пловдив") && !loc.includes("област"));
+      });
     }
 
     // Filter by price (client-side enforcement)
@@ -100,7 +131,7 @@ function App() {
     }
 
     return items;
-  }, [data, sortBy, activeSiteFilter, activeLocationFilter, filters.priceMin, filters.priceMax]);
+  }, [data, sortBy, activeSiteFilter, activeLocationFilter, filters.priceMin, filters.priceMax, filters.locationScope]);
 
   // Count listings per pinned location (from all listings, not filtered)
   const locationCounts = useMemo(() => {
