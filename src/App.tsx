@@ -203,8 +203,8 @@ function App() {
                 <ui5-segmented-button-item data-value="city" selected={filters.locationScope === "city" || undefined}>
                   гр. Пловдив
                 </ui5-segmented-button-item>
-                <ui5-segmented-button-item data-value="region" selected={filters.locationScope === "region" || undefined} icon="map">
-                  Област (~50 км)
+                <ui5-segmented-button-item data-value="region" selected={filters.locationScope === "region" || undefined}>
+                  Около Пловдив
                 </ui5-segmented-button-item>
               </ui5-segmented-button>
             </div>
