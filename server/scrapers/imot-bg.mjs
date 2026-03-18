@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 import iconv from "iconv-lite";
 
 const SITE = "imot.bg";
-const PAGES = 10;
+const PAGES = 3;
 
 const TYPE_MAP = {
   apartment: "1,2,3,4,5,6",

@@ -76,7 +76,7 @@ app.get("/api/listings", async (req, res) => {
       let error = null;
       try {
         const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("timeout")), 30000),
+          setTimeout(() => reject(new Error("timeout")), 15000),
         );
         listings = await Promise.race([s.fn(filters), timeout]);
       } catch (err) {

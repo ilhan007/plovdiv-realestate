@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 
 const SITE = "olx.bg";
-const PAGES = 10;
+const PAGES = 3;
 
 export async function scrape(filters) {
   const listings = [];

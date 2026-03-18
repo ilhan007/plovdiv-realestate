@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 
 const SITE = "home2u.bg";
-const PAGES = 10;
+const PAGES = 3;
 
 const TYPE_URLS = {
   apartment: "https://home2u.bg/apartamenti-plovdiv/",
