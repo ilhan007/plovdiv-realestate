@@ -55,17 +55,12 @@ function App() {
     const houseFilters = { ...DEFAULT_FILTERS, propertyType: "house" as const, locationScope: "region" as const, priceMin: 0, priceMax: 300000 };
     const landFilters = { ...DEFAULT_FILTERS, propertyType: "land" as const, locationScope: "region" as const, priceMin: 0, priceMax: 300000 };
 
-    let houseResult: ApiResponse | null = null;
-    let landResult: ApiResponse | null = null;
-
     // Fetch both in parallel, update allData as each stream progresses
     Promise.allSettled([
       fetchListings(houseFilters, (partial) => {
-        houseResult = partial;
         setAllData((prev) => ({ ...prev, house: partial }));
       }),
       fetchListings(landFilters, (partial) => {
-        landResult = partial;
         setAllData((prev) => ({ ...prev, land: partial }));
       }),
     ]).then(() => {
@@ -92,11 +87,14 @@ function App() {
       items = items.filter((l) => l.site === activeSiteFilter);
     }
 
-    // Filter by location scope (city = only "гр. Пловдив" / "Пловдив")
+    // Filter by location scope
+    // City: "гр. Пловдив, ..." or "Район | Пловдив" (neighborhoods)
+    // Region: everything including "Пловдив област, с.Село" (villages)
     if (filters.locationScope === "city") {
       items = items.filter((l) => {
-        const loc = (l.location || "").toLowerCase();
-        return loc.includes("гр. пловдив") || loc.includes("гр.пловдив") || (loc.includes("пловдив") && !loc.includes("област"));
+        const loc = (l.location || "");
+        return loc.includes("гр. Пловдив") || loc.includes("гр.Пловдив")
+          || (loc.includes("| Пловдив") && !loc.includes("област"));
       });
     }
 
