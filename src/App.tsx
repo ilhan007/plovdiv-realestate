@@ -55,20 +55,21 @@ function App() {
     const houseFilters = { ...DEFAULT_FILTERS, propertyType: "house" as const, locationScope: "region" as const, priceMin: 0, priceMax: 300000 };
     const landFilters = { ...DEFAULT_FILTERS, propertyType: "land" as const, locationScope: "region" as const, priceMin: 0, priceMax: 300000 };
 
-    // Fetch both in parallel, update allData as each stream progresses
-    Promise.allSettled([
-      fetchListings(houseFilters, (partial) => {
-        setAllData((prev) => ({ ...prev, house: partial }));
-      }),
-      fetchListings(landFilters, (partial) => {
-        setAllData((prev) => ({ ...prev, land: partial }));
-      }),
-    ]).then(() => {
+    // Fetch house first, then land — sequential to avoid overwhelming the server
+    const run = async () => {
+      try {
+        await fetchListings(houseFilters, (partial) => {
+          setAllData((prev) => ({ ...prev, house: partial }));
+        });
+        await fetchListings(landFilters, (partial) => {
+          setAllData((prev) => ({ ...prev, land: partial }));
+        });
+      } catch (err: any) {
+        setError(err.message);
+      }
       setLoading(false);
-    }).catch((err) => {
-      setError(err.message);
-      setLoading(false);
-    });
+    };
+    run();
   }, []);
 
   // When allData or propertyType changes, update displayed data
